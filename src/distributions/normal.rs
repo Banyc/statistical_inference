@@ -4,7 +4,7 @@ const ENTRIES: usize = 31 * 10;
 const END_Z: f64 = 3.10;
 
 lazy_static! {
-    static ref Z_SCORE_TABLE: ZScoreTable = Default::default();
+    pub static ref Z_SCORE_TABLE: ZScoreTable = Default::default();
 }
 
 pub struct ZScoreTable {
@@ -53,13 +53,13 @@ impl ZScoreTable {
         }
     }
 
-    pub fn p_value_one_side(&self, z: f64) -> f64 {
+    pub fn p_value_one_sided(&self, z: f64) -> f64 {
         let area = self.area(z);
         0.5 - area
     }
 
-    pub fn p_value_two_sides(&self, z: f64) -> f64 {
-        self.p_value_one_side(z) * 2.
+    pub fn p_value_two_sided(&self, z: f64) -> f64 {
+        self.p_value_one_sided(z) * 2.
     }
 
     fn area(&self, z: f64) -> f64 {
