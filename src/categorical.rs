@@ -50,6 +50,13 @@ pub struct CountAndExpect {
     pub expect: f64,
 }
 
+impl CountAndExpect {
+    pub fn z_square(&self) -> f64 {
+        let standard_error_square = self.expect;
+        (self.count as f64 - self.expect).powi(2) / standard_error_square
+    }
+}
+
 /// Null hypothesis: counts from each column is equal to their expected counts respectively
 pub fn fitness(catagories: &[CountAndExpect]) -> f64 {
     let df = NonZeroUsize::new(catagories.len() - 1).unwrap();
@@ -57,15 +64,51 @@ pub fn fitness(catagories: &[CountAndExpect]) -> f64 {
     // Normality check
     catagories.iter().for_each(|bin| assert!(bin.expect >= 5.));
 
-    let chi_square = catagories
-        .iter()
-        .map(|bin| {
-            let standard_error_square = bin.expect;
-            let z_square = (bin.count as f64 - bin.expect).powi(2) / standard_error_square;
-            #[allow(clippy::let_and_return)]
-            z_square
-        })
-        .sum();
+    let chi_square = catagories.iter().map(|bin| bin.z_square()).sum();
+    CHI_SQUARE_TABLE.p_value(df, chi_square)
+}
+
+/// Null hypothesis: the two variables are independent of each other
+pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usize; C]; R]) -> f64 {
+    assert!(R >= 2);
+    assert!(C >= 2);
+
+    let mut row_total = [0; R];
+    let mut col_total = [0; C];
+    let mut table_total = 0;
+    for (r, columns) in matrix.iter().enumerate() {
+        for (c, cell) in columns.iter().enumerate() {
+            row_total[r] += cell;
+            col_total[c] += cell;
+            table_total += cell;
+        }
+    }
+
+    let mut expect = [[0.; C]; R];
+    (0..R).for_each(|r| {
+        (0..C).for_each(|c| {
+            let cell_expect = (row_total[r] * col_total[c]) as f64 / table_total as f64;
+
+            // Normality check
+            assert!(cell_expect >= 5.);
+
+            expect[r][c] = cell_expect;
+        });
+    });
+
+    let df = NonZeroUsize::new((R - 1) * (C - 1)).unwrap();
+
+    let mut chi_square = 0.;
+    (0..R).for_each(|r| {
+        (0..C).for_each(|c| {
+            let bin = CountAndExpect {
+                count: matrix[r][c],
+                expect: expect[r][c],
+            };
+            chi_square += bin.z_square();
+        });
+    });
+
     CHI_SQUARE_TABLE.p_value(df, chi_square)
 }
 
@@ -113,5 +156,14 @@ mod tests {
             },
         ];
         assert!(fitness(&bins) > 0.05);
+    }
+
+    #[test]
+    fn test_two_way_table_independence() {
+        let matrix = [
+            [2, 23, 36],  //
+            [71, 50, 37], //
+        ];
+        assert!(two_way_table_independence(&matrix) < 0.05);
     }
 }
