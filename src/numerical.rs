@@ -35,6 +35,7 @@ pub fn difference_of_two_means(
     T_SCORE_TABLE.p_value_two_sided(df, t)
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct FStatistic {
     pub f: f64,
     pub df_1: usize,
@@ -42,47 +43,52 @@ pub struct FStatistic {
 }
 
 /// Null hypothesis: all means are equal.
-pub fn anova(groups: &[NumericalSample], total: NumericalSample) -> FStatistic {
-    let msg = mean_square_between_groups(groups, total);
-    let mse = mean_square_error(groups, total);
+pub fn anova(groups: &[NumericalSample]) -> FStatistic {
+    let total_n = groups.iter().map(|group| group.n).sum::<usize>();
+
+    let df_g = groups.len() - 1;
+    let msg = mean_square_between_groups(groups, total_n, df_g);
+
+    let df_e = total_n - groups.len();
+    let mse = mean_square_error(groups, df_e);
     let f = msg / mse;
     FStatistic {
         f,
-        df_1: groups.len() - 1,
-        df_2: total.n - groups.len(),
+        df_1: df_g,
+        df_2: df_e,
     }
 }
 
-fn mean_square_between_groups(groups: &[NumericalSample], total: NumericalSample) -> f64 {
-    let df_g = groups.len() - 1;
-    let ssg = sum_of_squares_between_groups(groups, total);
+fn mean_square_between_groups(groups: &[NumericalSample], total_n: usize, df_g: usize) -> f64 {
+    let ssg = sum_of_squares_between_groups(groups, total_n);
     ssg / df_g as f64
 }
 
-fn sum_of_squares_between_groups(groups: &[NumericalSample], total: NumericalSample) -> f64 {
+fn sum_of_squares_between_groups(groups: &[NumericalSample], total_n: usize) -> f64 {
+    let total_sum = groups
+        .iter()
+        .map(|group| group.mean * group.n as f64)
+        .sum::<f64>();
+    let total_mean = total_sum / total_n as f64;
     groups
         .iter()
         .map(|group| {
-            let difference = group.mean - total.mean;
+            let difference = group.mean - total_mean;
             group.n as f64 * difference.powi(2)
         })
         .sum()
 }
 
-fn mean_square_error(groups: &[NumericalSample], total: NumericalSample) -> f64 {
-    let df_e = total.n - groups.len();
-    let sse = sum_of_squared_errors(groups, total);
+fn mean_square_error(groups: &[NumericalSample], df_e: usize) -> f64 {
+    let sse = sum_of_squared_errors(groups);
     sse / df_e as f64
 }
 
-fn sum_of_squared_errors(groups: &[NumericalSample], total: NumericalSample) -> f64 {
-    let sst = sum_of_squares_total(total);
-    let ssg = sum_of_squares_between_groups(groups, total);
-    sst - ssg
-}
-
-fn sum_of_squares_total(total: NumericalSample) -> f64 {
-    total.deviation * (total.n - 1) as f64
+fn sum_of_squared_errors(groups: &[NumericalSample]) -> f64 {
+    groups
+        .iter()
+        .map(|group| (group.n - 1) as f64 * group.deviation)
+        .sum()
 }
 
 #[cfg(test)]
@@ -120,5 +126,30 @@ mod tests {
                 0.
             ) >= 0.05
         );
+    }
+
+    #[test]
+    fn test_anova() {
+        let groups = [
+            NumericalSample {
+                mean: 85.75,
+                deviation: 28.25,
+                n: 4,
+            },
+            NumericalSample {
+                mean: 84.,
+                deviation: 13.00,
+                n: 3,
+            },
+            NumericalSample {
+                mean: 90.2,
+                deviation: 15.70,
+                n: 5,
+            },
+        ];
+        let f = anova(&groups);
+        assert_eq!(f.df_1, 2);
+        assert_eq!(f.df_2, 9);
+        assert!((f.f - 2.1811).abs() < 0.05);
     }
 }
