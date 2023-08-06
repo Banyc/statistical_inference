@@ -26,6 +26,7 @@ pub struct TScoreTable {
 impl TScoreTable {
     pub const fn new() -> Self {
         // ref: <https://www.sjsu.edu/faculty/gerstman/StatPrimer/t-table.pdf>
+        #[allow(clippy::approx_constant)]
         let t_scores_30 = [
             [
                 1.000, 1.376, 1.963, 3.078, 6.314, 12.71, 31.82, 63.66, 318.31, 636.62,
