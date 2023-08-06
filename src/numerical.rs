@@ -35,6 +35,56 @@ pub fn difference_of_two_means(
     T_SCORE_TABLE.p_value_two_sided(df, t)
 }
 
+pub struct FStatistic {
+    pub f: f64,
+    pub df_1: usize,
+    pub df_2: usize,
+}
+
+/// Null hypothesis: all means are equal.
+pub fn anova(groups: &[NumericalSample], total: NumericalSample) -> FStatistic {
+    let msg = mean_square_between_groups(groups, total);
+    let mse = mean_square_error(groups, total);
+    let f = msg / mse;
+    FStatistic {
+        f,
+        df_1: groups.len() - 1,
+        df_2: total.n - groups.len(),
+    }
+}
+
+fn mean_square_between_groups(groups: &[NumericalSample], total: NumericalSample) -> f64 {
+    let df_g = groups.len() - 1;
+    let ssg = sum_of_squares_between_groups(groups, total);
+    ssg / df_g as f64
+}
+
+fn sum_of_squares_between_groups(groups: &[NumericalSample], total: NumericalSample) -> f64 {
+    groups
+        .iter()
+        .map(|group| {
+            let difference = group.mean - total.mean;
+            group.n as f64 * difference.powi(2)
+        })
+        .sum()
+}
+
+fn mean_square_error(groups: &[NumericalSample], total: NumericalSample) -> f64 {
+    let df_e = total.n - groups.len();
+    let sse = sum_of_squared_errors(groups, total);
+    sse / df_e as f64
+}
+
+fn sum_of_squared_errors(groups: &[NumericalSample], total: NumericalSample) -> f64 {
+    let sst = sum_of_squares_total(total);
+    let ssg = sum_of_squares_between_groups(groups, total);
+    sst - ssg
+}
+
+fn sum_of_squares_total(total: NumericalSample) -> f64 {
+    total.deviation * (total.n - 1) as f64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
