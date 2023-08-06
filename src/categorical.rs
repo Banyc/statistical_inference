@@ -3,10 +3,8 @@ use std::num::NonZeroUsize;
 use crate::distributions::{chi_square::CHI_SQUARE_TABLE, normal::Z_SCORE_TABLE};
 
 pub fn one_proportion(p_hat: f64, n: usize, p_0: f64) -> f64 {
-    assert!(p_hat <= 1.);
-    assert!(p_hat >= 0.);
-    assert!(p_0 <= 1.);
-    assert!(p_0 >= 0.);
+    assert!((0. ..=1.).contains(&p_hat));
+    assert!((0. ..=1.).contains(&p_0));
 
     // Normality check
     assert!(p_hat * n as f64 >= 10.);
@@ -24,12 +22,9 @@ pub fn difference_of_two_proportions(
     n_2: usize,
     p_0: f64,
 ) -> f64 {
-    assert!(p_hat_1 <= 1.);
-    assert!(p_hat_1 >= 0.);
-    assert!(p_hat_2 <= 1.);
-    assert!(p_hat_2 >= 0.);
-    assert!(p_0 <= 1.);
-    assert!(p_0 >= 0.);
+    assert!((0. ..=1.).contains(&p_hat_1));
+    assert!((0. ..=1.).contains(&p_hat_2));
+    assert!((0. ..=1.).contains(&p_0));
 
     // Normality check
     assert!(p_hat_1 * n_1 as f64 >= 10.);
@@ -51,9 +46,9 @@ pub struct CountAndExpect {
 }
 
 impl CountAndExpect {
-    pub fn z_square(&self) -> f64 {
-        let standard_error_square = self.expect;
-        (self.count as f64 - self.expect).powi(2) / standard_error_square
+    pub fn z_squared(&self) -> f64 {
+        let standard_error_squared = self.expect;
+        (self.count as f64 - self.expect).powi(2) / standard_error_squared
     }
 }
 
@@ -64,7 +59,7 @@ pub fn fitness(catagories: &[CountAndExpect]) -> f64 {
     // Normality check
     catagories.iter().for_each(|bin| assert!(bin.expect >= 5.));
 
-    let chi_square = catagories.iter().map(|bin| bin.z_square()).sum();
+    let chi_square = catagories.iter().map(|bin| bin.z_squared()).sum();
     CHI_SQUARE_TABLE.p_value(df, chi_square)
 }
 
@@ -76,13 +71,14 @@ pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usi
     let mut row_total = [0; R];
     let mut col_total = [0; C];
     let mut table_total = 0;
-    for (r, columns) in matrix.iter().enumerate() {
-        for (c, cell) in columns.iter().enumerate() {
+    (0..R).for_each(|r| {
+        (0..C).for_each(|c| {
+            let cell = matrix[r][c];
             row_total[r] += cell;
             col_total[c] += cell;
             table_total += cell;
-        }
-    }
+        });
+    });
 
     let mut expect = [[0.; C]; R];
     (0..R).for_each(|r| {
@@ -105,7 +101,7 @@ pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usi
                 count: matrix[r][c],
                 expect: expect[r][c],
             };
-            chi_square += bin.z_square();
+            chi_square += bin.z_squared();
         });
     });
 
