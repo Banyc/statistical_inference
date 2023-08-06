@@ -6,7 +6,8 @@ lazy_static! {
     pub static ref CHI_SQUARE_TABLE: ChiSquareTable = Default::default();
 }
 
-const P_VALUE_SEQUENCE: [f64; 15] = [
+const P_VALUE_SEQUENCE_SIZE: usize = 15;
+const P_VALUE_SEQUENCE: [f64; P_VALUE_SEQUENCE_SIZE] = [
     0.995, 0.99, 0.975, 0.95, 0.9, 0.5, 0.2, 0.1, 0.05, 0.025, 0.02, 0.01, 0.005, 0.002, 0.001,
 ];
 const MAX_DEGREES_OF_FREEDOM: usize = 50;
@@ -15,7 +16,7 @@ pub struct ChiSquareTable {
     /// - First order key: degrees of freedom
     ///   - Start with 1 degree of freedom
     /// - Second order key: `P_VALUE_SEQUENCE` index
-    chi_square_values: [[f64; 15]; MAX_DEGREES_OF_FREEDOM],
+    chi_square_values: [[f64; P_VALUE_SEQUENCE_SIZE]; MAX_DEGREES_OF_FREEDOM],
 }
 
 impl ChiSquareTable {
