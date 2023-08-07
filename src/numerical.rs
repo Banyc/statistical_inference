@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use crate::distributions::t::T_SCORE_TABLE;
+use crate::distributions::{f::F_CDF, t::T_SCORE_TABLE};
 
 #[derive(Debug, Clone, Copy)]
 pub struct NumericalSample {
@@ -43,7 +43,7 @@ pub struct FStatistic {
 }
 
 /// Null hypothesis: all means are equal.
-pub fn anova(groups: &[NumericalSample]) -> FStatistic {
+pub fn anova(groups: &[NumericalSample]) -> (FStatistic, f64) {
     let total_n = groups.iter().map(|group| group.n).sum::<usize>();
 
     let df_g = groups.len() - 1;
@@ -52,11 +52,12 @@ pub fn anova(groups: &[NumericalSample]) -> FStatistic {
     let df_e = total_n - groups.len();
     let mse = mean_square_error(groups, df_e);
     let f = msg / mse;
-    FStatistic {
+    let f = FStatistic {
         f,
         df_1: df_g,
         df_2: df_e,
-    }
+    };
+    (f, F_CDF.p_value(f.df_1, f.df_2, f.f))
 }
 
 fn mean_square_between_groups(groups: &[NumericalSample], total_n: usize, df_g: usize) -> f64 {
@@ -147,9 +148,10 @@ mod tests {
                 n: 5,
             },
         ];
-        let f = anova(&groups);
+        let (f, p) = anova(&groups);
         assert_eq!(f.df_1, 2);
         assert_eq!(f.df_2, 9);
         assert!((f.f - 2.1811).abs() < 0.05);
+        assert!((p - 0.1689).abs() < 0.05);
     }
 }
