@@ -4,6 +4,7 @@ use strict_num::{FiniteF64, NormalizedF64, PositiveF64};
 
 use crate::distributions::{
     f::{FParams, F_CDF},
+    normal::Z_SCORE_TABLE,
     t::T_SCORE_TABLE,
 };
 
@@ -44,6 +45,30 @@ fn standard_error(samples: &[NumericalSample]) -> f64 {
         .map(|x| x.standard_error_squared())
         .sum::<f64>();
     standard_error_squared.sqrt()
+}
+
+/// Determine a proper sample size given the null mean is zero.
+///
+/// `power`: probability that the alternative hypothesis is not confused as a null hypothesis
+///
+/// - usually in
+///   ```math
+///   [0.8, 0.9]
+///   ```
+pub fn min_count_of_each_of_two_samples(
+    mean_a: FiniteF64,
+    power: NormalizedF64,
+    max_p_value: NormalizedF64,
+    deviation_1: PositiveF64,
+    deviation_2: PositiveF64,
+) -> usize {
+    let one_sided_p_value = max_p_value.get() / 2.;
+    let one_sided_p_value = NormalizedF64::new(one_sided_p_value).unwrap();
+    let power_region_extension = Z_SCORE_TABLE.z(power);
+    let reject_region_extension = Z_SCORE_TABLE.z(one_sided_p_value);
+    let region = reject_region_extension.get() - power_region_extension.get();
+    let count = (deviation_1.get() + deviation_2.get()) / (mean_a.get() / region).powi(2);
+    count.ceil() as usize
 }
 
 /// Null hypothesis: all means are equal.
@@ -141,6 +166,17 @@ mod tests {
             .get()
                 >= 0.05
         );
+    }
+
+    #[test]
+    fn test_proper_sample_size() {
+        let power = NormalizedF64::new(0.8).unwrap();
+        let mean_a = FiniteF64::new(-3.).unwrap();
+        let deviation = PositiveF64::new((12.0_f64).powi(2)).unwrap();
+        let max_p_value = NormalizedF64::new(0.05).unwrap();
+        let count =
+            min_count_of_each_of_two_samples(mean_a, power, max_p_value, deviation, deviation);
+        assert_eq!(count, 251);
     }
 
     #[test]

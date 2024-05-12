@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use strict_num::NormalizedF64;
+use strict_num::{FiniteF64, NormalizedF64};
 
 const ENTRIES: usize = 31 * 10;
 const END_Z: f64 = 3.10;
@@ -69,6 +69,26 @@ impl ZScoreTable {
         let index = z / END_Z * ENTRIES as f64;
         let index = index as usize;
         NormalizedF64::new(self.area_from_zero_to_z[index]).unwrap()
+    }
+
+    pub fn z(&self, area_up_to_z: NormalizedF64) -> FiniteF64 {
+        let one_sided_area = match area_up_to_z.cmp(&NormalizedF64::new(0.5).unwrap()) {
+            std::cmp::Ordering::Less => 0.5 - area_up_to_z.get(),
+            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => area_up_to_z.get() - 0.5,
+        };
+        let z_sign = match area_up_to_z.cmp(&NormalizedF64::new(0.5).unwrap()) {
+            std::cmp::Ordering::Less => -1.,
+            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => 1.,
+        };
+
+        let mut z = END_Z;
+        for index in 0..ENTRIES {
+            if one_sided_area < self.area_from_zero_to_z[index] {
+                break;
+            }
+            z = (index as f64) * END_Z / ENTRIES as f64;
+        }
+        FiniteF64::new(z * z_sign).unwrap()
     }
 }
 impl Default for ZScoreTable {
