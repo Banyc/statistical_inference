@@ -20,7 +20,7 @@ impl NumericalSample {
 }
 
 pub fn one_sample_mean(sample: NumericalSample, mean_0: FiniteF64) -> NormalizedF64 {
-    let standard_error = sample.standard_error_squared().sqrt();
+    let standard_error = standard_error(&[sample]);
     let t = (sample.mean.get() - mean_0.get()) / standard_error;
     let df = NonZeroUsize::new(sample.n.get() - 1).unwrap();
     T_SCORE_TABLE.p_value_two_sided(df, t)
@@ -31,12 +31,19 @@ pub fn difference_of_two_means(
     sample_2: NumericalSample,
     mean_0: FiniteF64,
 ) -> NormalizedF64 {
-    let standard_error =
-        (sample_1.standard_error_squared() + sample_2.standard_error_squared()).sqrt();
+    let standard_error = standard_error(&[sample_1, sample_2]);
     let t = (sample_1.mean.get() - sample_2.mean.get() - mean_0.get()) / standard_error;
     let df = sample_1.n.min(sample_2.n).get() - 1;
     let df = NonZeroUsize::new(df).unwrap();
     T_SCORE_TABLE.p_value_two_sided(df, t)
+}
+
+fn standard_error(samples: &[NumericalSample]) -> f64 {
+    let standard_error_squared = samples
+        .iter()
+        .map(|x| x.standard_error_squared())
+        .sum::<f64>();
+    standard_error_squared.sqrt()
 }
 
 /// Null hypothesis: all means are equal.
