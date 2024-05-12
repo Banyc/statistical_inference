@@ -15,13 +15,20 @@ impl CountAndProportion {
         let b = 10. <= self.count as f64 * (1. - self.proportion.get());
         a && b
     }
+
+    pub fn standard_error_squared(&self) -> f64 {
+        self.proportion.get() * (1. - self.proportion.get()) / self.count as f64
+    }
 }
 
 pub fn one_proportion(sample: CountAndProportion, p_0: NormalizedF64) -> NormalizedF64 {
     // Normality check
     assert!(sample.is_normally_distributed_enough());
 
-    let standard_error = ((p_0.get() * (1. - p_0.get())) / sample.count as f64).sqrt();
+    let standard_error = standard_error(&[CountAndProportion {
+        count: sample.count,
+        proportion: p_0,
+    }]);
     let z = (sample.proportion.get() - p_0.get()) / standard_error;
     Z_SCORE_TABLE.p_value_two_sided(z)
 }
@@ -35,13 +42,17 @@ pub fn difference_of_two_proportions(
     assert!(sample_1.is_normally_distributed_enough());
     assert!(sample_2.is_normally_distributed_enough());
 
-    let error_1 =
-        (sample_1.proportion.get() * (1. - sample_1.proportion.get())) / sample_1.count as f64;
-    let error_2 =
-        (sample_2.proportion.get() * (1. - sample_2.proportion.get())) / sample_2.count as f64;
-    let standard_error = (error_1 + error_2).sqrt();
+    let standard_error = standard_error(&[sample_1, sample_2]);
     let z = ((sample_1.proportion.get() - sample_2.proportion.get()) - p_0.get()) / standard_error;
     Z_SCORE_TABLE.p_value_two_sided(z)
+}
+
+fn standard_error(samples: &[CountAndProportion]) -> f64 {
+    let standard_error_squared = samples
+        .iter()
+        .map(|x| x.standard_error_squared())
+        .sum::<f64>();
+    standard_error_squared.sqrt()
 }
 
 #[derive(Debug, Copy, Clone)]
