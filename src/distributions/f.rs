@@ -1,13 +1,11 @@
 use std::rc::Rc;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use reikna::func;
 use reikna::func::Function;
 use reikna::integral::integrate_wp;
 
-lazy_static! {
-    pub static ref F_CDF: FCdf = Default::default();
-}
+pub static F_CDF: Lazy<FCdf> = Lazy::new(Default::default);
 
 pub struct FCdf {}
 

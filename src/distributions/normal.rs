@@ -1,11 +1,9 @@
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 const ENTRIES: usize = 31 * 10;
 const END_Z: f64 = 3.10;
 
-lazy_static! {
-    pub static ref Z_SCORE_TABLE: ZScoreTable = Default::default();
-}
+pub static Z_SCORE_TABLE: Lazy<ZScoreTable> = Lazy::new(Default::default);
 
 pub struct ZScoreTable {
     /// From 0 to 3.09
