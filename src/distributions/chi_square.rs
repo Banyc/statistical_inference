@@ -1,6 +1,7 @@
 use std::num::NonZeroUsize;
 
 use once_cell::sync::Lazy;
+use strict_num::NormalizedF64;
 
 pub static CHI_SQUARE_TABLE: Lazy<ChiSquareTable> = Lazy::new(Default::default);
 
@@ -15,7 +16,6 @@ pub struct ChiSquareTable {
     /// - Second order key: `P_VALUE_SEQUENCE` index
     chi_square_values: [[f64; P_VALUE_SEQUENCE_SIZE]; MAX_DEGREES_OF_FREEDOM],
 }
-
 impl ChiSquareTable {
     pub const fn new() -> Self {
         // ref: <https://www.mathsisfun.com/data/chi-square-table.html>
@@ -75,7 +75,7 @@ impl ChiSquareTable {
         Self { chi_square_values }
     }
 
-    pub fn p_value(&self, df: NonZeroUsize, chi_square: f64) -> f64 {
+    pub fn p_value(&self, df: NonZeroUsize, chi_square: f64) -> NormalizedF64 {
         assert!(df.get() <= MAX_DEGREES_OF_FREEDOM);
         let row = &self.chi_square_values[df.get() - 1];
         let mut i = 0;
@@ -86,12 +86,11 @@ impl ChiSquareTable {
             i += 1;
         }
         if i == row.len() {
-            return 0.;
+            return NormalizedF64::new(0.).unwrap();
         }
-        P_VALUE_SEQUENCE[i]
+        NormalizedF64::new(P_VALUE_SEQUENCE[i]).unwrap()
     }
 }
-
 impl Default for ChiSquareTable {
     fn default() -> Self {
         Self::new()
@@ -104,16 +103,31 @@ mod tests {
 
     #[test]
     fn df_1_chi_square_0() {
-        assert!(CHI_SQUARE_TABLE.p_value(NonZeroUsize::new(1).unwrap(), 0.) >= 0.995);
+        assert!(
+            CHI_SQUARE_TABLE
+                .p_value(NonZeroUsize::new(1).unwrap(), 0.)
+                .get()
+                >= 0.995
+        );
     }
 
     #[test]
     fn df_50_chi_square_0() {
-        assert!(CHI_SQUARE_TABLE.p_value(NonZeroUsize::new(50).unwrap(), 0.) >= 0.995);
+        assert!(
+            CHI_SQUARE_TABLE
+                .p_value(NonZeroUsize::new(50).unwrap(), 0.)
+                .get()
+                >= 0.995
+        );
     }
 
     #[test]
     fn df_1_chi_square_11() {
-        assert!(CHI_SQUARE_TABLE.p_value(NonZeroUsize::new(1).unwrap(), 11.) < 0.001);
+        assert!(
+            CHI_SQUARE_TABLE
+                .p_value(NonZeroUsize::new(1).unwrap(), 11.)
+                .get()
+                < 0.001
+        );
     }
 }

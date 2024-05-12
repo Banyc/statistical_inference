@@ -1,70 +1,78 @@
 use std::num::NonZeroUsize;
 
+use strict_num::{NormalizedF64, PositiveF64};
+
 use crate::distributions::{chi_square::CHI_SQUARE_TABLE, normal::Z_SCORE_TABLE};
 
-pub fn one_proportion(p_hat: f64, n: usize, p_0: f64) -> f64 {
-    assert!((0. ..=1.).contains(&p_hat));
-    assert!((0. ..=1.).contains(&p_0));
+#[derive(Debug, Copy, Clone)]
+pub struct CountAndProportion {
+    pub count: usize,
+    pub proportion: NormalizedF64,
+}
+impl CountAndProportion {
+    pub fn is_normally_distributed_enough(&self) -> bool {
+        let a = 10. <= self.count as f64 * self.proportion.get();
+        let b = 10. <= self.count as f64 * (1. - self.proportion.get());
+        a && b
+    }
+}
 
+pub fn one_proportion(sample: CountAndProportion, p_0: NormalizedF64) -> NormalizedF64 {
     // Normality check
-    assert!(p_hat * n as f64 >= 10.);
-    assert!((1. - p_hat) * n as f64 >= 10.);
+    assert!(sample.is_normally_distributed_enough());
 
-    let standard_error = ((p_0 * (1. - p_0)) / n as f64).sqrt();
-    let z = (p_hat - p_0) / standard_error;
+    let standard_error = ((p_0.get() * (1. - p_0.get())) / sample.count as f64).sqrt();
+    let z = (sample.proportion.get() - p_0.get()) / standard_error;
     Z_SCORE_TABLE.p_value_two_sided(z)
 }
 
 pub fn difference_of_two_proportions(
-    p_hat_1: f64,
-    n_1: usize,
-    p_hat_2: f64,
-    n_2: usize,
-    p_0: f64,
-) -> f64 {
-    assert!((0. ..=1.).contains(&p_hat_1));
-    assert!((0. ..=1.).contains(&p_hat_2));
-    assert!((0. ..=1.).contains(&p_0));
-
+    sample_1: CountAndProportion,
+    sample_2: CountAndProportion,
+    p_0: NormalizedF64,
+) -> NormalizedF64 {
     // Normality check
-    assert!(p_hat_1 * n_1 as f64 >= 10.);
-    assert!((1. - p_hat_1) * n_1 as f64 >= 10.);
-    assert!(p_hat_2 * n_2 as f64 >= 10.);
-    assert!((1. - p_hat_2) * n_2 as f64 >= 10.);
+    assert!(sample_1.is_normally_distributed_enough());
+    assert!(sample_2.is_normally_distributed_enough());
 
-    let standard_error = (((p_hat_1 * (1. - p_hat_1)) / n_1 as f64)
-        + ((p_hat_2 * (1. - p_hat_2)) / n_2 as f64))
-        .sqrt();
-    let z = ((p_hat_1 - p_hat_2) - p_0) / standard_error;
+    let error_1 =
+        (sample_1.proportion.get() * (1. - sample_1.proportion.get())) / sample_1.count as f64;
+    let error_2 =
+        (sample_2.proportion.get() * (1. - sample_2.proportion.get())) / sample_2.count as f64;
+    let standard_error = (error_1 + error_2).sqrt();
+    let z = ((sample_1.proportion.get() - sample_2.proportion.get()) - p_0.get()) / standard_error;
     Z_SCORE_TABLE.p_value_two_sided(z)
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct CountAndExpect {
     pub count: usize,
-    pub expect: f64,
+    pub expect: PositiveF64,
 }
-
 impl CountAndExpect {
     pub fn z_squared(&self) -> f64 {
-        let standard_error_squared = self.expect;
-        (self.count as f64 - self.expect).powi(2) / standard_error_squared
+        let standard_error_squared = self.expect.get();
+        (self.count as f64 - self.expect.get()).powi(2) / standard_error_squared
     }
 }
 
 /// Null hypothesis: counts from each column is equal to their expected counts respectively
-pub fn fitness(catagories: &[CountAndExpect]) -> f64 {
+pub fn fitness(catagories: &[CountAndExpect]) -> NormalizedF64 {
     let df = NonZeroUsize::new(catagories.len() - 1).unwrap();
 
     // Normality check
-    catagories.iter().for_each(|bin| assert!(bin.expect >= 5.));
+    catagories
+        .iter()
+        .for_each(|bin| assert!(bin.expect.get() >= 5.));
 
     let chi_square = catagories.iter().map(|bin| bin.z_squared()).sum();
     CHI_SQUARE_TABLE.p_value(df, chi_square)
 }
 
 /// Null hypothesis: the two variables are independent of each other
-pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usize; C]; R]) -> f64 {
+pub fn two_way_table_independence<const R: usize, const C: usize>(
+    matrix: &[[usize; C]; R],
+) -> NormalizedF64 {
     assert!(R >= 2);
     assert!(C >= 2);
 
@@ -80,7 +88,7 @@ pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usi
         });
     });
 
-    let mut expect = [[0.; C]; R];
+    let mut expect = [[PositiveF64::new(0.).unwrap(); C]; R];
     (0..R).for_each(|r| {
         (0..C).for_each(|c| {
             let cell_expect = (row_total[r] * col_total[c]) as f64 / table_total as f64;
@@ -88,7 +96,7 @@ pub fn two_way_table_independence<const R: usize, const C: usize>(matrix: &[[usi
             // Normality check
             assert!(cell_expect >= 5.);
 
-            expect[r][c] = cell_expect;
+            expect[r][c] = PositiveF64::new(cell_expect).unwrap();
         });
     });
 
@@ -114,21 +122,37 @@ mod tests {
 
     #[test]
     fn test_one_proportion() {
-        assert!(one_proportion(0.37, 1000, 0.5) < 0.05);
+        let sample = CountAndProportion {
+            count: 1000,
+            proportion: NormalizedF64::new(0.37).unwrap(),
+        };
+        let p_0 = NormalizedF64::new(0.5).unwrap();
+        assert!(one_proportion(sample, p_0).get() < 0.05);
     }
 
     #[test]
     fn test_difference_of_two_proportions() {
-        assert!(
-            difference_of_two_proportions(
-                500. / (500 + 44425) as f64,
-                500 + 44425,
-                505. / (505 + 44405) as f64,
-                505 + 44405,
-                0.
-            ) > 0.05
-        );
-        assert!(difference_of_two_proportions(0.958, 1000, 0.899, 1000, 0.03) < 0.05);
+        let sample_1 = CountAndProportion {
+            count: 500 + 44425,
+            proportion: NormalizedF64::new(500. / (500 + 44425) as f64).unwrap(),
+        };
+        let sample_2 = CountAndProportion {
+            count: 505 + 44405,
+            proportion: NormalizedF64::new(505. / (505 + 44405) as f64).unwrap(),
+        };
+        let p_0 = NormalizedF64::new(0.).unwrap();
+        assert!(difference_of_two_proportions(sample_1, sample_2, p_0).get() > 0.05);
+
+        let sample_1 = CountAndProportion {
+            count: 1000,
+            proportion: NormalizedF64::new(0.958).unwrap(),
+        };
+        let sample_2 = CountAndProportion {
+            count: 1000,
+            proportion: NormalizedF64::new(0.899).unwrap(),
+        };
+        let p_0 = NormalizedF64::new(0.03).unwrap();
+        assert!(difference_of_two_proportions(sample_1, sample_2, p_0).get() < 0.05);
     }
 
     #[test]
@@ -136,22 +160,22 @@ mod tests {
         let bins = [
             CountAndExpect {
                 count: 205,
-                expect: 198.,
+                expect: PositiveF64::new(198.).unwrap(),
             },
             CountAndExpect {
                 count: 26,
-                expect: 19.25,
+                expect: PositiveF64::new(19.25).unwrap(),
             },
             CountAndExpect {
                 count: 25,
-                expect: 33.,
+                expect: PositiveF64::new(33.).unwrap(),
             },
             CountAndExpect {
                 count: 19,
-                expect: 24.75,
+                expect: PositiveF64::new(24.75).unwrap(),
             },
         ];
-        assert!(fitness(&bins) > 0.05);
+        assert!(fitness(&bins).get() > 0.05);
     }
 
     #[test]
@@ -160,6 +184,6 @@ mod tests {
             [2, 23, 36],  //
             [71, 50, 37], //
         ];
-        assert!(two_way_table_independence(&matrix) < 0.05);
+        assert!(two_way_table_independence(&matrix).get() < 0.05);
     }
 }

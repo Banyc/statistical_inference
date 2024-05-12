@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use strict_num::NormalizedF64;
 
 const ENTRIES: usize = 31 * 10;
 const END_Z: f64 = 3.10;
@@ -9,7 +10,6 @@ pub struct ZScoreTable {
     /// From 0 to 3.09
     area_from_zero_to_z: [f64; ENTRIES],
 }
-
 impl ZScoreTable {
     pub const fn new() -> Self {
         // ref: <https://www.mathsisfun.com/data/standard-normal-distribution-table.html>
@@ -51,26 +51,26 @@ impl ZScoreTable {
         }
     }
 
-    pub fn p_value_one_sided(&self, z: f64) -> f64 {
+    pub fn p_value_one_sided(&self, z: f64) -> NormalizedF64 {
         let area = self.area(z);
-        0.5 - area
+        NormalizedF64::new(0.5 - area.get()).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, z: f64) -> f64 {
-        self.p_value_one_sided(z) * 2.
+    pub fn p_value_two_sided(&self, z: f64) -> NormalizedF64 {
+        NormalizedF64::new(self.p_value_one_sided(z).get() * 2.).unwrap()
     }
 
-    fn area(&self, z: f64) -> f64 {
+    fn area(&self, z: f64) -> NormalizedF64 {
         let z = z.abs();
         if z >= END_Z {
-            return *self.area_from_zero_to_z.last().unwrap();
+            let area = *self.area_from_zero_to_z.last().unwrap();
+            return NormalizedF64::new(area).unwrap();
         }
         let index = z / END_Z * ENTRIES as f64;
         let index = index as usize;
-        self.area_from_zero_to_z[index]
+        NormalizedF64::new(self.area_from_zero_to_z[index]).unwrap()
     }
 }
-
 impl Default for ZScoreTable {
     fn default() -> Self {
         Self::new()

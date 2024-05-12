@@ -1,13 +1,13 @@
 use std::num::NonZeroUsize;
 
 use once_cell::sync::Lazy;
+use strict_num::NormalizedF64;
 
 use super::normal::Z_SCORE_TABLE;
 
 const TAIL_AREA_SEQUENCE_SIZE: usize = 10;
-const TAIL_AREA_SEQUENCE: [f64; TAIL_AREA_SEQUENCE_SIZE] = [
-    0.25, 0.20, 0.15, 0.10, 0.05, 0.025, 0.01, 0.005, 0.001, 0.0005,
-];
+#[rustfmt::skip]
+const TAIL_AREA_SEQUENCE: [f64; TAIL_AREA_SEQUENCE_SIZE] = [0.25, 0.20, 0.15, 0.10, 0.05, 0.025, 0.01, 0.005, 0.001, 0.0005];
 const MAX_DEGREES_OF_FREEDOM: usize = 30;
 
 pub static T_SCORE_TABLE: Lazy<TScoreTable> = Lazy::new(Default::default);
@@ -20,7 +20,6 @@ pub struct TScoreTable {
     t_scores_100: [f64; TAIL_AREA_SEQUENCE_SIZE],
     t_scores_1000: [f64; TAIL_AREA_SEQUENCE_SIZE],
 }
-
 impl TScoreTable {
     #[rustfmt::skip]
     pub const fn new() -> Self {
@@ -90,7 +89,7 @@ impl TScoreTable {
         None
     }
 
-    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: f64) -> f64 {
+    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: f64) -> NormalizedF64 {
         let row = match self.row(df) {
             Some(row) => row,
             None => return Z_SCORE_TABLE.p_value_one_sided(t),
@@ -106,16 +105,15 @@ impl TScoreTable {
             i += 1;
         }
         if i == row.len() {
-            return 0.;
+            return NormalizedF64::new(0.).unwrap();
         }
-        TAIL_AREA_SEQUENCE[i]
+        NormalizedF64::new(TAIL_AREA_SEQUENCE[i]).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: f64) -> f64 {
-        self.p_value_one_sided(df, t) * 2.
+    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: f64) -> NormalizedF64 {
+        NormalizedF64::new(self.p_value_one_sided(df, t).get() * 2.).unwrap()
     }
 }
-
 impl Default for TScoreTable {
     fn default() -> Self {
         Self::new()
@@ -128,28 +126,63 @@ mod tests {
 
     #[test]
     fn df_1_t_0() {
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(1).unwrap(), 0.) >= 0.5);
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), 0.)
+                .get()
+                >= 0.5
+        );
     }
 
     #[test]
     fn df_1_t_637() {
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(1).unwrap(), 637.) < 0.001);
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), 637.)
+                .get()
+                < 0.001
+        );
     }
 
     #[test]
     fn df_30_t_0() {
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(30).unwrap(), 0.) >= 0.5);
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(30).unwrap(), 0.)
+                .get()
+                >= 0.5
+        );
     }
 
     #[test]
     fn df_35_t_2() {
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.) >= 0.05);
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.) < 0.10);
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.)
+                .get()
+                >= 0.05
+        );
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.)
+                .get()
+                < 0.10
+        );
     }
 
     #[test]
     fn df_1001_t_2() {
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.) >= 0.02);
-        assert!(T_SCORE_TABLE.p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.) < 0.05);
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.)
+                .get()
+                >= 0.02
+        );
+        assert!(
+            T_SCORE_TABLE
+                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.)
+                .get()
+                < 0.05
+        );
     }
 }
