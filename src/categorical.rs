@@ -55,6 +55,33 @@ fn standard_error(samples: &[CountAndProportion]) -> f64 {
     standard_error_squared.sqrt()
 }
 
+/// Determine a proper sample size given the null proportion is zero.
+///
+/// `power`: probability that the alternative hypothesis is not confused as a null hypothesis
+///
+/// - usually in
+///   ```math
+///   [0.8, 0.9]
+///   ```
+pub fn min_count_of_each_of_two_samples(
+    proportion_1: NormalizedF64,
+    proportion_2: NormalizedF64,
+    p_0: NormalizedF64,
+    power: NormalizedF64,
+    max_p_value: NormalizedF64,
+) -> usize {
+    let one_sided_p_value = max_p_value.get() / 2.;
+    let one_sided_p_value = NormalizedF64::new(one_sided_p_value).unwrap();
+    let power_region_extension = Z_SCORE_TABLE.z(power);
+    let reject_region_extension = Z_SCORE_TABLE.z(one_sided_p_value);
+    let region = reject_region_extension.get() - power_region_extension.get();
+    let error = proportion_1.get() * (1. - proportion_1.get())
+        + proportion_2.get() * (1. - proportion_2.get());
+    let diff = proportion_1.get() - proportion_2.get() - p_0.get();
+    let count = error / (diff / region).powi(2);
+    count.ceil() as usize
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct CountAndExpect {
     pub count: usize,
@@ -164,6 +191,33 @@ mod tests {
         };
         let p_0 = NormalizedF64::new(0.03).unwrap();
         assert!(difference_of_two_proportions(sample_1, sample_2, p_0).get() < 0.05);
+    }
+
+    #[test]
+    fn test_proper_sample_size() {
+        let proportion_1 = 500. / (500 + 44425) as f64;
+        let proportion_2 = 505. / (505 + 44405) as f64;
+        let proportion_1 = NormalizedF64::new(proportion_1).unwrap();
+        let proportion_2 = NormalizedF64::new(proportion_2).unwrap();
+        let p_0 = 0.;
+        let p_0 = NormalizedF64::new(p_0).unwrap();
+        let power = NormalizedF64::new(0.8).unwrap();
+        let max_p_value = NormalizedF64::new(0.05).unwrap();
+        let count =
+            min_count_of_each_of_two_samples(proportion_1, proportion_2, p_0, power, max_p_value);
+        println!("{count}");
+
+        let proportion_1 = 0.958;
+        let proportion_2 = 0.899;
+        let proportion_1 = NormalizedF64::new(proportion_1).unwrap();
+        let proportion_2 = NormalizedF64::new(proportion_2).unwrap();
+        let p_0 = 0.03;
+        let p_0 = NormalizedF64::new(p_0).unwrap();
+        let power = NormalizedF64::new(0.8).unwrap();
+        let max_p_value = NormalizedF64::new(0.05).unwrap();
+        let count =
+            min_count_of_each_of_two_samples(proportion_1, proportion_2, p_0, power, max_p_value);
+        println!("{count}");
     }
 
     #[test]
