@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use strict_num::{NormalizedF64, PositiveF64};
+use strict_num::{FiniteF64, NormalizedF64, PositiveF64};
 
 use crate::distributions::{chi_square::CHI_SQUARE_TABLE, normal::Z_SCORE_TABLE};
 
@@ -30,6 +30,7 @@ pub fn one_proportion(sample: CountAndProportion, p_0: NormalizedF64) -> Normali
         proportion: p_0,
     }]);
     let z = (sample.proportion.get() - p_0.get()) / standard_error;
+    let z = FiniteF64::new(z).unwrap();
     Z_SCORE_TABLE.p_value_two_sided(z)
 }
 
@@ -44,6 +45,7 @@ pub fn difference_of_two_proportions(
 
     let standard_error = standard_error(&[sample_1, sample_2]);
     let z = ((sample_1.proportion.get() - sample_2.proportion.get()) - p_0.get()) / standard_error;
+    let z = FiniteF64::new(z).unwrap();
     Z_SCORE_TABLE.p_value_two_sided(z)
 }
 

@@ -51,17 +51,17 @@ impl ZScoreTable {
         }
     }
 
-    pub fn p_value_one_sided(&self, z: f64) -> NormalizedF64 {
+    pub fn p_value_one_sided(&self, z: FiniteF64) -> NormalizedF64 {
         let area = self.area(z);
         NormalizedF64::new(0.5 - area.get()).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, z: f64) -> NormalizedF64 {
+    pub fn p_value_two_sided(&self, z: FiniteF64) -> NormalizedF64 {
         NormalizedF64::new(self.p_value_one_sided(z).get() * 2.).unwrap()
     }
 
-    fn area(&self, z: f64) -> NormalizedF64 {
-        let z = z.abs();
+    fn area(&self, z: FiniteF64) -> NormalizedF64 {
+        let z = z.get().abs();
         if z >= END_Z {
             let area = *self.area_from_zero_to_z.last().unwrap();
             return NormalizedF64::new(area).unwrap();
@@ -103,21 +103,21 @@ mod tests {
 
     #[test]
     fn z_0() {
-        assert_eq!(Z_SCORE_TABLE.area(0.), 0.);
+        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(0.).unwrap()), 0.);
     }
 
     #[test]
     fn z_3_09() {
-        assert_eq!(Z_SCORE_TABLE.area(3.09), 0.4990);
+        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(3.09).unwrap()), 0.4990);
     }
 
     #[test]
     fn z_3_10() {
-        assert_eq!(Z_SCORE_TABLE.area(3.09), 0.4990);
+        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(3.09).unwrap()), 0.4990);
     }
 
     #[test]
     fn z_1_05() {
-        assert_eq!(Z_SCORE_TABLE.area(1.05), 0.3531);
+        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(1.05).unwrap()), 0.3531);
     }
 }

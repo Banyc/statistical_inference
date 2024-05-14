@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use once_cell::sync::Lazy;
-use strict_num::NormalizedF64;
+use strict_num::{FiniteF64, NormalizedF64};
 
 use super::normal::Z_SCORE_TABLE;
 
@@ -89,13 +89,13 @@ impl TScoreTable {
         None
     }
 
-    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: f64) -> NormalizedF64 {
+    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: FiniteF64) -> NormalizedF64 {
         let row = match self.row(df) {
             Some(row) => row,
             None => return Z_SCORE_TABLE.p_value_one_sided(t),
         };
 
-        let t = t.abs();
+        let t = t.get().abs();
 
         let mut i = 0;
         for col in row {
@@ -110,7 +110,7 @@ impl TScoreTable {
         NormalizedF64::new(TAIL_AREA_SEQUENCE[i]).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: f64) -> NormalizedF64 {
+    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: FiniteF64) -> NormalizedF64 {
         NormalizedF64::new(self.p_value_one_sided(df, t).get() * 2.).unwrap()
     }
 }
@@ -128,7 +128,7 @@ mod tests {
     fn df_1_t_0() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), 0.)
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), FiniteF64::new(0.).unwrap())
                 .get()
                 >= 0.5
         );
@@ -138,7 +138,7 @@ mod tests {
     fn df_1_t_637() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), 637.)
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), FiniteF64::new(637.).unwrap())
                 .get()
                 < 0.001
         );
@@ -148,7 +148,7 @@ mod tests {
     fn df_30_t_0() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(30).unwrap(), 0.)
+                .p_value_two_sided(NonZeroUsize::new(30).unwrap(), FiniteF64::new(0.).unwrap())
                 .get()
                 >= 0.5
         );
@@ -158,13 +158,13 @@ mod tests {
     fn df_35_t_2() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.)
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), FiniteF64::new(2.).unwrap())
                 .get()
                 >= 0.05
         );
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), 2.)
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), FiniteF64::new(2.).unwrap())
                 .get()
                 < 0.10
         );
@@ -174,13 +174,19 @@ mod tests {
     fn df_1001_t_2() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.)
+                .p_value_two_sided(
+                    NonZeroUsize::new(1001).unwrap(),
+                    FiniteF64::new(2.).unwrap()
+                )
                 .get()
                 >= 0.02
         );
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), 2.)
+                .p_value_two_sided(
+                    NonZeroUsize::new(1001).unwrap(),
+                    FiniteF64::new(2.).unwrap()
+                )
                 .get()
                 < 0.05
         );
