@@ -1,5 +1,5 @@
 [package]
-name = "statistics_inference"
+name = "statistical_inference"
 version = "0.1.0"
 edition = "2021"
 
