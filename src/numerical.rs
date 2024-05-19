@@ -174,10 +174,10 @@ mod tests {
     fn test_proper_sample_size() {
         let power = NormalizedF64::new(0.8).unwrap();
         let mean_a = FiniteF64::new(-3.).unwrap();
-        let deviation = PositiveF64::new((12.0_f64).powi(2)).unwrap();
+        let variance = PositiveF64::new((12.0_f64).powi(2)).unwrap();
         let max_p_value = NormalizedF64::new(0.05).unwrap();
         let count =
-            min_count_of_each_of_two_samples(mean_a, power, max_p_value, deviation, deviation);
+            min_count_of_each_of_two_samples(mean_a, power, max_p_value, variance, variance);
         assert_eq!(count, 251);
     }
 
