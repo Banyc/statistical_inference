@@ -11,12 +11,12 @@ use crate::distributions::{
 #[derive(Debug, Clone, Copy)]
 pub struct NumericalSample {
     pub mean: FiniteF64,
-    pub deviation: PositiveF64,
+    pub variance: PositiveF64,
     pub count: NonZeroUsize,
 }
 impl NumericalSample {
     pub fn standard_error_squared(&self) -> f64 {
-        self.deviation.get() / (self.count.get() as f64)
+        self.variance.get() / (self.count.get() as f64)
     }
 }
 
@@ -125,7 +125,7 @@ fn mean_square_error(groups: &[NumericalSample], df_e: NonZeroUsize) -> f64 {
 fn sum_of_squared_errors(groups: &[NumericalSample]) -> f64 {
     groups
         .iter()
-        .map(|group| (group.count.get() - 1) as f64 * group.deviation.get())
+        .map(|group| (group.count.get() - 1) as f64 * group.variance.get())
         .sum()
 }
 
@@ -139,7 +139,7 @@ mod tests {
             one_sample_mean(
                 NumericalSample {
                     mean: FiniteF64::new(97.32).unwrap(),
-                    deviation: PositiveF64::new(16.98_f64.powi(2)).unwrap(),
+                    variance: PositiveF64::new(16.98_f64.powi(2)).unwrap(),
                     count: NonZeroUsize::new(100).unwrap(),
                 },
                 FiniteF64::new(93.29).unwrap()
@@ -155,12 +155,12 @@ mod tests {
             difference_of_two_means(
                 NumericalSample {
                     mean: FiniteF64::new(7.18).unwrap(),
-                    deviation: PositiveF64::new(1.60_f64.powi(2)).unwrap(),
+                    variance: PositiveF64::new(1.60_f64.powi(2)).unwrap(),
                     count: NonZeroUsize::new(100).unwrap(),
                 },
                 NumericalSample {
                     mean: FiniteF64::new(6.78).unwrap(),
-                    deviation: PositiveF64::new(1.43_f64.powi(2)).unwrap(),
+                    variance: PositiveF64::new(1.43_f64.powi(2)).unwrap(),
                     count: NonZeroUsize::new(50).unwrap(),
                 },
                 FiniteF64::new(0.).unwrap()
@@ -186,17 +186,17 @@ mod tests {
         let groups = [
             NumericalSample {
                 mean: FiniteF64::new(85.75).unwrap(),
-                deviation: PositiveF64::new(28.25).unwrap(),
+                variance: PositiveF64::new(28.25).unwrap(),
                 count: NonZeroUsize::new(4).unwrap(),
             },
             NumericalSample {
                 mean: FiniteF64::new(84.).unwrap(),
-                deviation: PositiveF64::new(13.00).unwrap(),
+                variance: PositiveF64::new(13.00).unwrap(),
                 count: NonZeroUsize::new(3).unwrap(),
             },
             NumericalSample {
                 mean: FiniteF64::new(90.2).unwrap(),
-                deviation: PositiveF64::new(15.70).unwrap(),
+                variance: PositiveF64::new(15.70).unwrap(),
                 count: NonZeroUsize::new(5).unwrap(),
             },
         ];
