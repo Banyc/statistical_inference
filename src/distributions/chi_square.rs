@@ -1,9 +1,8 @@
-use std::num::NonZeroUsize;
+use std::{num::NonZeroUsize, sync::LazyLock};
 
-use once_cell::sync::Lazy;
-use strict_num::NormalizedF64;
+use crate::UnitR;
 
-pub static CHI_SQUARE_TABLE: Lazy<ChiSquareTable> = Lazy::new(Default::default);
+pub static CHI_SQUARE_TABLE: LazyLock<ChiSquareTable> = LazyLock::new(Default::default);
 
 const P_VALUE_SEQUENCE_SIZE: usize = 15;
 #[rustfmt::skip]
@@ -75,7 +74,7 @@ impl ChiSquareTable {
         Self { chi_square_values }
     }
 
-    pub fn p_value(&self, df: NonZeroUsize, chi_square: f64) -> NormalizedF64 {
+    pub fn p_value(&self, df: NonZeroUsize, chi_square: f64) -> UnitR<f64> {
         assert!(df.get() <= MAX_DEGREES_OF_FREEDOM);
         let row = &self.chi_square_values[df.get() - 1];
         let mut i = 0;
@@ -86,9 +85,9 @@ impl ChiSquareTable {
             i += 1;
         }
         if i == row.len() {
-            return NormalizedF64::new(0.).unwrap();
+            return UnitR::new(0.).unwrap();
         }
-        NormalizedF64::new(P_VALUE_SEQUENCE[i]).unwrap()
+        UnitR::new(P_VALUE_SEQUENCE[i]).unwrap()
     }
 }
 impl Default for ChiSquareTable {

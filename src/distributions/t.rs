@@ -1,7 +1,6 @@
-use std::num::NonZeroUsize;
+use std::{num::NonZeroUsize, sync::LazyLock};
 
-use once_cell::sync::Lazy;
-use strict_num::{FiniteF64, NormalizedF64};
+use crate::{UnitR, R};
 
 use super::normal::Z_SCORE_TABLE;
 
@@ -10,7 +9,7 @@ const TAIL_AREA_SEQUENCE_SIZE: usize = 10;
 const TAIL_AREA_SEQUENCE: [f64; TAIL_AREA_SEQUENCE_SIZE] = [0.25, 0.20, 0.15, 0.10, 0.05, 0.025, 0.01, 0.005, 0.001, 0.0005];
 const MAX_DEGREES_OF_FREEDOM: usize = 30;
 
-pub static T_SCORE_TABLE: Lazy<TScoreTable> = Lazy::new(Default::default);
+pub static T_SCORE_TABLE: LazyLock<TScoreTable> = LazyLock::new(Default::default);
 
 pub struct TScoreTable {
     t_scores_30: [[f64; TAIL_AREA_SEQUENCE_SIZE]; MAX_DEGREES_OF_FREEDOM],
@@ -89,7 +88,7 @@ impl TScoreTable {
         None
     }
 
-    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: FiniteF64) -> NormalizedF64 {
+    pub fn p_value_one_sided(&self, df: NonZeroUsize, t: R<f64>) -> UnitR<f64> {
         let row = match self.row(df) {
             Some(row) => row,
             None => return Z_SCORE_TABLE.p_value_one_sided(t),
@@ -105,13 +104,13 @@ impl TScoreTable {
             i += 1;
         }
         if i == row.len() {
-            return NormalizedF64::new(0.).unwrap();
+            return UnitR::new(0.).unwrap();
         }
-        NormalizedF64::new(TAIL_AREA_SEQUENCE[i]).unwrap()
+        UnitR::new(TAIL_AREA_SEQUENCE[i]).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: FiniteF64) -> NormalizedF64 {
-        NormalizedF64::new(self.p_value_one_sided(df, t).get() * 2.).unwrap()
+    pub fn p_value_two_sided(&self, df: NonZeroUsize, t: R<f64>) -> UnitR<f64> {
+        UnitR::new(self.p_value_one_sided(df, t).get() * 2.).unwrap()
     }
 }
 impl Default for TScoreTable {
@@ -128,7 +127,7 @@ mod tests {
     fn df_1_t_0() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), FiniteF64::new(0.).unwrap())
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), R::new(0.).unwrap())
                 .get()
                 >= 0.5
         );
@@ -138,7 +137,7 @@ mod tests {
     fn df_1_t_637() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), FiniteF64::new(637.).unwrap())
+                .p_value_two_sided(NonZeroUsize::new(1).unwrap(), R::new(637.).unwrap())
                 .get()
                 < 0.001
         );
@@ -148,7 +147,7 @@ mod tests {
     fn df_30_t_0() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(30).unwrap(), FiniteF64::new(0.).unwrap())
+                .p_value_two_sided(NonZeroUsize::new(30).unwrap(), R::new(0.).unwrap())
                 .get()
                 >= 0.5
         );
@@ -158,13 +157,13 @@ mod tests {
     fn df_35_t_2() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), FiniteF64::new(2.).unwrap())
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), R::new(2.).unwrap())
                 .get()
                 >= 0.05
         );
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), FiniteF64::new(2.).unwrap())
+                .p_value_two_sided(NonZeroUsize::new(35).unwrap(), R::new(2.).unwrap())
                 .get()
                 < 0.10
         );
@@ -174,19 +173,13 @@ mod tests {
     fn df_1001_t_2() {
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(
-                    NonZeroUsize::new(1001).unwrap(),
-                    FiniteF64::new(2.).unwrap()
-                )
+                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), R::new(2.).unwrap())
                 .get()
                 >= 0.02
         );
         assert!(
             T_SCORE_TABLE
-                .p_value_two_sided(
-                    NonZeroUsize::new(1001).unwrap(),
-                    FiniteF64::new(2.).unwrap()
-                )
+                .p_value_two_sided(NonZeroUsize::new(1001).unwrap(), R::new(2.).unwrap())
                 .get()
                 < 0.05
         );

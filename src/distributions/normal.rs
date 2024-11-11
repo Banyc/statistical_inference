@@ -1,10 +1,11 @@
-use once_cell::sync::Lazy;
-use strict_num::{FiniteF64, NormalizedF64};
+use std::sync::LazyLock;
+
+use crate::{UnitR, R};
 
 const ENTRIES: usize = 31 * 10;
 const END_Z: f64 = 3.10;
 
-pub static Z_SCORE_TABLE: Lazy<ZScoreTable> = Lazy::new(Default::default);
+pub static Z_SCORE_TABLE: LazyLock<ZScoreTable> = LazyLock::new(Default::default);
 
 pub struct ZScoreTable {
     /// From 0 to 3.09
@@ -51,32 +52,32 @@ impl ZScoreTable {
         }
     }
 
-    pub fn p_value_one_sided(&self, z: FiniteF64) -> NormalizedF64 {
+    pub fn p_value_one_sided(&self, z: R<f64>) -> UnitR<f64> {
         let area = self.area(z);
-        NormalizedF64::new(0.5 - area.get()).unwrap()
+        UnitR::new(0.5 - area.get()).unwrap()
     }
 
-    pub fn p_value_two_sided(&self, z: FiniteF64) -> NormalizedF64 {
-        NormalizedF64::new(self.p_value_one_sided(z).get() * 2.).unwrap()
+    pub fn p_value_two_sided(&self, z: R<f64>) -> UnitR<f64> {
+        UnitR::new(self.p_value_one_sided(z).get() * 2.).unwrap()
     }
 
-    fn area(&self, z: FiniteF64) -> NormalizedF64 {
+    fn area(&self, z: R<f64>) -> UnitR<f64> {
         let z = z.get().abs();
         if z >= END_Z {
             let area = *self.area_from_zero_to_z.last().unwrap();
-            return NormalizedF64::new(area).unwrap();
+            return UnitR::new(area).unwrap();
         }
         let index = z / END_Z * ENTRIES as f64;
         let index = index as usize;
-        NormalizedF64::new(self.area_from_zero_to_z[index]).unwrap()
+        UnitR::new(self.area_from_zero_to_z[index]).unwrap()
     }
 
-    pub fn z(&self, area_up_to_z: NormalizedF64) -> FiniteF64 {
-        let one_sided_area = match area_up_to_z.cmp(&NormalizedF64::new(0.5).unwrap()) {
+    pub fn z(&self, area_up_to_z: UnitR<f64>) -> R<f64> {
+        let one_sided_area = match area_up_to_z.cmp(&UnitR::new(0.5).unwrap()) {
             std::cmp::Ordering::Less => 0.5 - area_up_to_z.get(),
             std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => area_up_to_z.get() - 0.5,
         };
-        let z_sign = match area_up_to_z.cmp(&NormalizedF64::new(0.5).unwrap()) {
+        let z_sign = match area_up_to_z.cmp(&UnitR::new(0.5).unwrap()) {
             std::cmp::Ordering::Less => -1.,
             std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => 1.,
         };
@@ -88,7 +89,7 @@ impl ZScoreTable {
             }
             z = (index as f64) * END_Z / ENTRIES as f64;
         }
-        FiniteF64::new(z * z_sign).unwrap()
+        R::new(z * z_sign).unwrap()
     }
 }
 impl Default for ZScoreTable {
@@ -103,21 +104,21 @@ mod tests {
 
     #[test]
     fn z_0() {
-        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(0.).unwrap()), 0.);
+        assert_eq!(Z_SCORE_TABLE.area(R::new(0.).unwrap()).get(), 0.);
     }
 
     #[test]
     fn z_3_09() {
-        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(3.09).unwrap()), 0.4990);
+        assert_eq!(Z_SCORE_TABLE.area(R::new(3.09).unwrap()).get(), 0.4990);
     }
 
     #[test]
     fn z_3_10() {
-        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(3.09).unwrap()), 0.4990);
+        assert_eq!(Z_SCORE_TABLE.area(R::new(3.09).unwrap()).get(), 0.4990);
     }
 
     #[test]
     fn z_1_05() {
-        assert_eq!(Z_SCORE_TABLE.area(FiniteF64::new(1.05).unwrap()), 0.3531);
+        assert_eq!(Z_SCORE_TABLE.area(R::new(1.05).unwrap()).get(), 0.3531);
     }
 }
